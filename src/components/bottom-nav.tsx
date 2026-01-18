@@ -39,12 +39,6 @@ export function BottomNav() {
             label: 'Mi Perfil',
             icon: User,
             visible: true
-        },
-        {
-            href: '/admin',
-            label: 'Admin',
-            icon: Settings,
-            visible: profile?.role === 'admin'
         }
     ]
 

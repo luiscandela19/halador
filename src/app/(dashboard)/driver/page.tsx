@@ -7,18 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { PlusCircle, MapPin, Calendar, Clock, Loader2, Navigation, Trash2, Users, Plus, Phone, Check } from 'lucide-react'
+import { PlusCircle, MapPin, Calendar, Clock, Loader2, Navigation, Trash2, Users, Plus, Phone, Check, Music, Wind, Dog, Package, CigaretteOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { PERU_CITIES } from '@/lib/cities'
 import { type Trip, type TripRequest } from '@/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import { useDriverTrips, useDriverRequests } from '@/hooks/use-trips'
+
 export default function DriverDashboard() {
     const { user, profile } = useAuth()
     const supabase = createClient()
 
-    const [trips, setTrips] = useState<Trip[]>([])
-    const [loading, setLoading] = useState(true)
+    // SWR Hooks
+    const { trips, isLoading: loadingTrips, mutate: mutateTrips } = useDriverTrips(user?.id)
+    const { requests, isLoading: loadingRequests, mutate: mutateRequests } = useDriverRequests(user?.id)
+
+    const loading = loadingTrips || loadingRequests
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showForm, setShowForm] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -30,60 +36,24 @@ export default function DriverDashboard() {
         date: '',
         time: '',
         price: '30', // String to handle input correctly
-        seats: 4
+        seats: 4,
+        features: [] as string[]
     })
 
-    // Requests State
-    const [requests, setRequests] = useState<TripRequest[]>([])
+    // Realtime logic handled implicitly by SWR refreshInterval + manual mutation on change, 
+    // but we can keep subscriptions purely for notification toasts if desired, 
+    // or just rely on SWR's fast polling. For "Turbo" feel, SWR polling (5s) + optimistic update is best.
+    // We will keep Profile listener as it's critical.
 
     useEffect(() => {
         if (!user) return
 
-        fetchTrips()
-        fetchRequests()
-
-        // Realtime Subscription
-        const channel = supabase
-            .channel('driver_dashboard')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'trip_requests',
-                    filter: `driver_id=eq.${user.id}`
-                },
-                () => {
-                    // Refresh requests on any change (simple & effective)
-                    fetchRequests()
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'trips',
-                    filter: `driver_id=eq.${user.id}`
-                },
-                (payload) => {
-                    // Update trips list locally instead of full fetch for smoothness
-                    setTrips(current => current.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as Trip : t))
-                }
-            )
-            .subscribe()
-
-        // Separate channel for Profile to avoid conflicts or missed events
+        // 1. Profile Tracker (Subscription status)
         const profileChannel = supabase
             .channel('driver_profile_updates')
             .on(
                 'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'profiles',
-                    filter: `id=eq.${user.id}`
-                },
+                { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
                 (payload: any) => {
                     if (payload.new.subscription_status === 'active') {
                         toast.success('¡Suscripción Activada! 🚀')
@@ -93,29 +63,37 @@ export default function DriverDashboard() {
             )
             .subscribe()
 
+        // 2. Incoming Requests Tracker (Realtime Booking)
+        const requestsChannel = supabase
+            .channel('driver_incoming_requests')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'trip_requests',
+                    filter: `driver_id=eq.${user.id}`
+                },
+                (payload) => {
+                    // New Request Arrived!
+                    toast.success('¡Nueva solicitud de pasajero!')
+                    mutateRequests() // Instant refresh SWR
+                    const audio = new Audio('/sounds/notification.mp3') // Optional simple beep if file exists, or browser default
+                    audio.play().catch(() => { })
+                }
+            )
+            .subscribe()
+
         return () => {
-            supabase.removeChannel(channel)
             supabase.removeChannel(profileChannel)
+            supabase.removeChannel(requestsChannel)
         }
-    }, [user])
+    }, [user, mutateRequests])
 
-    const fetchRequests = async () => {
-        // Fetch requests (pending AND accepted) for my trips
-        // Join with passenger profile to get phone number
-        const { data, error } = await supabase
-            .from('trip_requests')
-            .select(`
-                *,
-                trips!inner(*),
-                passenger_profile:passenger_id(phone)
-            `)
-            .eq('trips.driver_id', user?.id)
-            .neq('status', 'rejected') // Show Pending and Accepted
-            .order('created_at', { ascending: false })
-
-        if (!error && data) {
-            setRequests(data as any) // Type casting due to join
-        }
+    // Helper to refresh everything
+    const refreshAll = () => {
+        mutateTrips()
+        mutateRequests()
     }
 
     const handlePublishClick = () => {
@@ -153,8 +131,8 @@ export default function DriverDashboard() {
             if (data && !data.success) throw new Error(data.error)
 
             toast.success('Pasajero aceptado correctamente')
-            fetchRequests() // Refresh requests
-            fetchTrips()    // Refresh trips (seats update)
+            mutateRequests() // Refresh requests
+            mutateTrips()    // Refresh trips (seats update)
         } catch (error: any) {
             toast.error(error.message || 'Error al aceptar')
         }
@@ -169,28 +147,12 @@ export default function DriverDashboard() {
 
             if (error) throw error
             toast.success('Solicitud rechazada')
-            fetchRequests()
+            mutateRequests()
         } catch (error: any) {
             toast.error(error.message)
         }
     }
 
-    const fetchTrips = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('trips')
-                .select('*')
-                .eq('driver_id', user?.id)
-                .order('created_at', { ascending: false })
-
-            if (error) throw error
-            setTrips(data || [])
-        } catch (error: any) {
-            toast.error('Error al cargar viajes: ' + error.message)
-        } finally {
-            setLoading(false)
-        }
-    }
 
     const handleCreateTrip = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -237,7 +199,8 @@ export default function DriverDashboard() {
                 seats_available: seats, // Use parsed seats
                 driver_lat: lat,
                 driver_lng: lng,
-                status: 'open'
+                status: 'open',
+                features: formData.features
             })
 
             const timeoutPromise = new Promise((_, reject) =>
@@ -254,7 +217,7 @@ export default function DriverDashboard() {
 
             toast.success('¡Viaje publicado con éxito!')
             setShowForm(false)
-            fetchTrips()
+            mutateTrips()
         } catch (error: any) {
             toast.error('Error: ' + (error.message || 'Error desconocido'))
         } finally {
@@ -269,7 +232,7 @@ export default function DriverDashboard() {
             const { error } = await supabase.from('trips').delete().eq('id', id)
             if (error) throw error
             toast.success('Viaje eliminado')
-            fetchTrips()
+            mutateTrips()
         } catch (error: any) {
             toast.error('Error: ' + error.message)
         }
@@ -409,6 +372,40 @@ export default function DriverDashboard() {
                                 </div>
                             </div>
 
+                            <div className="space-y-2 pt-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Comodidades (Vibes)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { id: 'ac', label: 'A/C', icon: Wind },
+                                        { id: 'music', label: 'Música', icon: Music },
+                                        { id: 'trunk', label: 'Maletera', icon: Package },
+                                        { id: 'pet', label: 'Mascotas OK', icon: Dog },
+                                        { id: 'smoke_free', label: 'No Fumar', icon: CigaretteOff },
+                                    ].map(feat => {
+                                        const isSelected = formData.features.includes(feat.id)
+                                        const Icon = feat.icon
+                                        return (
+                                            <button
+                                                key={feat.id}
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    features: prev.features.includes(feat.id)
+                                                        ? prev.features.filter(f => f !== feat.id)
+                                                        : [...prev.features, feat.id]
+                                                }))}
+                                                className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-bold transition-all ${isSelected
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
+                                                    : 'bg-background hover:bg-muted text-muted-foreground'
+                                                    }`}
+                                            >
+                                                <Icon className="h-3 w-3" /> {feat.label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
                             <div className="flex gap-2 pt-2">
                                 <Button type="button" variant="outline" className="flex-1 font-bold h-12" onClick={() => setShowForm(false)} disabled={isSubmitting}>Cancelar</Button>
                                 <Button type="submit" className="flex-1 font-black italic h-12" disabled={isSubmitting}>
@@ -492,7 +489,7 @@ export default function DriverDashboard() {
                                                     if (error) toast.error(error.message)
                                                     else {
                                                         toast.success('Viaje finalizado')
-                                                        fetchTrips()
+                                                        mutateTrips()
                                                     }
                                                 }}
                                             >

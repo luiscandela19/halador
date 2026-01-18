@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/components/auth-provider";
 import { Toaster } from "sonner";
-import PageTransition from "@/components/page-transition";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,9 +19,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HALADOR | Viajes Compartidos",
   description: "Transporte inteligente y seguro.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Halador",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  }
 };
 
-import { BottomNav } from "@/components/bottom-nav";
+export const viewport: Viewport = {
+  themeColor: "#4f46e5",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 import { RealtimeManager } from '@/components/realtime-manager'
 
 export default function RootLayout({
@@ -32,16 +49,11 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-zinc-50 dark:bg-zinc-950`}
       >
         <AuthProvider>
           <RealtimeManager />
-          <main className="mx-auto max-w-md min-h-screen border-x bg-background relative shadow-xl pb-20">
-            <PageTransition>
-              {children}
-            </PageTransition>
-          </main>
-          <BottomNav />
+          {children}
           <Toaster richColors position="top-center" />
         </AuthProvider>
       </body>

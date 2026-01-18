@@ -123,8 +123,10 @@ export default function ProfilePage() {
                 <div className="text-center w-full">
                     <h2 className="text-2xl font-black uppercase tracking-tight">{profile.full_name}</h2>
                     <Badge variant="outline" className="mt-1 font-bold text-xs uppercase tracking-widest text-primary border-primary/50">
-                        {profile.role === 'driver' ? 'Conductor Oficial' : 'Pasajero Verificado'}
+                        {profile.role === 'driver' ? 'Conductor Oficial' : profile.role === 'admin' ? 'SUPER ADMIN (DIOS)' : 'Pasajero Verificado'}
                     </Badge>
+
+
 
                     <div className="mt-4 flex items-center justify-center gap-2">
                         {isEditingPhone ? (
@@ -151,23 +153,25 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-transparent">
-                    <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                        <span className="text-3xl font-black text-indigo-600">{profile.rating_average || '5.0'}</span>
-                        <div className="flex text-yellow-500 mb-1">
-                            <Star className="h-3 w-3 fill-current" />
-                            <Star className="h-3 w-3 fill-current" />
-                            <Star className="h-3 w-3 fill-current" />
-                            <Star className="h-3 w-3 fill-current" />
-                            <Star className="h-3 w-3 fill-current" />
+                <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-transparent overflow-hidden">
+                    <CardContent className="flex flex-col items-center justify-center p-6 text-center group">
+                        <span className="text-3xl font-black text-indigo-600 transition-all duration-500 group-hover:scale-110">
+                            {profile.rating_average || '5.0'}
+                        </span>
+                        <div className="flex text-yellow-500 mb-1 animate-in zoom-in spin-in-12 duration-500 delay-100">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <Star key={i} className="h-3 w-3 fill-current" />
+                            ))}
                         </div>
                         <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">{profile.rating_count || 0} Reseñas</p>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-transparent">
-                    <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                        <span className="text-3xl font-black text-emerald-600">{profile.trips_completed || 0}</span>
-                        <ShieldCheck className="h-4 w-4 text-emerald-500 mb-1" />
+                <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-transparent overflow-hidden">
+                    <CardContent className="flex flex-col items-center justify-center p-6 text-center group">
+                        <span className="text-3xl font-black text-emerald-600 transition-all duration-500 group-hover:scale-110">
+                            {profile.trips_completed || 0}
+                        </span>
+                        <ShieldCheck className="h-4 w-4 text-emerald-500 mb-1 animate-bounce" />
                         <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Viajes Completados</p>
                     </CardContent>
                 </Card>

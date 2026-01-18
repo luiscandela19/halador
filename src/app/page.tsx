@@ -13,10 +13,12 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && user && profile) {
-      if (profile.role === 'driver') router.push('/driver')
-      else router.push('/passenger')
+      // Force hard redirect to avoid Next.js caching issues with layouts
+      if (profile.role === 'admin') window.location.href = '/admin'
+      else if (profile.role === 'driver') window.location.href = '/driver'
+      else window.location.href = '/passenger'
     }
-  }, [user, profile, loading, router])
+  }, [user, profile, loading])
 
   if (loading) {
     return (

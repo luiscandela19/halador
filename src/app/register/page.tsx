@@ -64,23 +64,23 @@ export default function RegisterPage() {
                                 type="button"
                                 onClick={() => setRole('passenger')}
                                 className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all",
-                                    role === 'passenger' ? "border-primary bg-primary/5 shadow-inner" : "border-muted hover:border-muted-foreground"
+                                    "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300",
+                                    role === 'passenger' ? "border-primary bg-primary/10 shadow-lg scale-105" : "border-muted/50 hover:border-muted-foreground/50 opacity-60 hover:opacity-100"
                                 )}
                             >
-                                <User className={cn("h-8 w-8 mb-2", role === 'passenger' ? "text-primary" : "text-muted-foreground")} />
-                                <span className={cn("text-xs font-black uppercase", role === 'passenger' ? "text-primary" : "text-muted-foreground")}>Pasajero</span>
+                                <User className={cn("h-8 w-8 mb-2 transition-transform duration-300", role === 'passenger' ? "text-primary scale-110" : "text-muted-foreground")} />
+                                <span className={cn("text-xs font-black uppercase tracking-widest", role === 'passenger' ? "text-primary" : "text-muted-foreground")}>Pasajero</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setRole('driver')}
                                 className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all",
-                                    role === 'driver' ? "border-primary bg-primary/5 shadow-inner" : "border-muted hover:border-muted-foreground"
+                                    "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300",
+                                    role === 'driver' ? "border-primary bg-primary/10 shadow-lg scale-105" : "border-muted/50 hover:border-muted-foreground/50 opacity-60 hover:opacity-100"
                                 )}
                             >
-                                <Car className={cn("h-8 w-8 mb-2", role === 'driver' ? "text-primary" : "text-muted-foreground")} />
-                                <span className={cn("text-xs font-black uppercase", role === 'driver' ? "text-primary" : "text-muted-foreground")}>Conductor</span>
+                                <Car className={cn("h-8 w-8 mb-2 transition-transform duration-300", role === 'driver' ? "text-primary scale-110" : "text-muted-foreground")} />
+                                <span className={cn("text-xs font-black uppercase tracking-widest", role === 'driver' ? "text-primary" : "text-muted-foreground")}>Conductor</span>
                             </button>
                         </div>
 

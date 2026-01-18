@@ -19,15 +19,30 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (error) throw error
 
+            // Fetch profile to check role
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', data.user.id)
+                .single()
+
             toast.success('¡Bienvenido de nuevo!')
-            window.location.href = '/'
+
+            // Intelligent Redirect
+            if (profile?.role === 'admin') {
+                window.location.href = '/admin'
+            } else if (profile?.role === 'driver') {
+                window.location.href = '/driver'
+            } else {
+                window.location.href = '/passenger'
+            }
         } catch (error: any) {
             toast.error(error.message || 'Error al iniciar sesión')
         } finally {

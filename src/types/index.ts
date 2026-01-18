@@ -32,6 +32,7 @@ export interface Trip {
     status: 'open' | 'full' | 'cancelled' | 'completed'
     driver_lat?: string | null
     driver_lng?: string | null
+    features?: string[] // JSONB
     passengers?: any[] // JSONB from DB
     created_at: string
 }

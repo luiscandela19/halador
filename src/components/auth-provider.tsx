@@ -94,8 +94,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase])
 
     const signOut = async () => {
-        await supabase.auth.signOut()
+        // Optimistic UI: Reset state immediately
+        setUser(null)
+        setProfile(null)
+
+        // Force immediate redirect without waiting
         window.location.href = '/login'
+
+        // Perform cleanup in background (if execution continues before unload)
+        try {
+            await supabase.auth.signOut()
+        } catch (e) {
+            console.error('Error signing out:', e)
+        }
     }
 
     return (

@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value, options))
+                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set({ name, value, ...options }))
                     supabaseResponse = NextResponse.next({
                         request,
                     })
@@ -35,16 +35,43 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    if (
-        !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth') &&
-        !request.nextUrl.pathname.startsWith('/register') &&
-        request.nextUrl.pathname !== '/'
-    ) {
-        // no user, potentially respond with a 401, or redirect
+    // ALLOW PUBLIC ROUTES
+    const isPublic =
+        request.nextUrl.pathname === '/' ||
+        request.nextUrl.pathname.startsWith('/login') ||
+        request.nextUrl.pathname.startsWith('/register') ||
+        request.nextUrl.pathname.startsWith('/auth') ||
+        request.nextUrl.pathname.startsWith('/admin/login') // Admin login is public
+
+    // 2. PROTECTED ROUTES LOGIC
+    if (user) {
+        // Fetch role nicely (we can't easily fetch DB in middleware without extra cost, 
+        // but we can trust the client-side redirect for UX, and use RLS for data security).
+        // HOWEVER, for strict routing, we rely on the specific paths.
+
+        // Note: Reading DB in middleware is possible but adds latency. 
+        // For this Vercel deployment, we'll keep it simple: 
+        // We rely on the App Layouts to enforce access (Page Guards).
+        // Middleware handles unauthenticated access mostly.
+
+        // BUT, to fix your specific "Testing" issue where cached redirects confuse you:
+        const path = request.nextUrl.pathname
+
+        // Prevent loops: If on /login but getting redirects
+        if (path.startsWith('/login') || path.startsWith('/register')) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/' // Let the root page handler decide where to send them
+            return NextResponse.redirect(url)
+        }
+    }
+
+    if (!user && !isPublic) {
         const url = request.nextUrl.clone()
-        url.pathname = '/login'
+        if (request.nextUrl.pathname.startsWith('/admin')) {
+            url.pathname = '/admin/login'
+        } else {
+            url.pathname = '/login'
+        }
         return NextResponse.redirect(url)
     }
 
